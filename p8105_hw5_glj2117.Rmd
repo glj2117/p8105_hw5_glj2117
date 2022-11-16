@@ -9,6 +9,7 @@ date: '2022-11-16'
 library(tidyverse)
 library(patchwork)
 
+
 knitr::opts_chunk$set(
   fig.width = 6,
   fig.asp = .6,
@@ -64,15 +65,43 @@ homicide_data =
   homicide_data %>% 
   unite(city_state, city, state)
   
-homicide_data %>% 
-  group_by(city_state, disposition) %>% 
-  summarize(homicides = n()) %>% 
-  knitr::kable()
+
+  homicide_data %>% 
+    group_by(city_state) %>% 
+    summarize(homicides = n()) 
+
+homicide_data = 
+  homicide_data %>% 
+  mutate(unsolved = if_else(disposition == "Closed without arrest", 1, 0)) %>%
+  mutate(unsolved = if_else(disposition == "Open/No arrest", 1, unsolved))
   
+  unsolved_homicides = 
+    homicide_data %>% 
+    group_by(city_state, unsolved) %>% 
+    summarize(total_homicides = n()) 
+
 ```
 
-
 For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
+
+```{r}
+
+Baltimore_data =
+  unsolved_homicides %>% 
+  filter(city_state == "Baltimore_MD")
+  
+
+Baltimore_prop =
+  prop.test(
+    x = Baltimore_data %>% pull(unsolved), 
+    n = Baltimore_data %>% pull(total_homicides), 
+    alternative = c("two.sided"),
+    conf.level = 0.95, correct = TRUE) %>% 
+    broom::tidy()
+
+
+```
+
 
 Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 
