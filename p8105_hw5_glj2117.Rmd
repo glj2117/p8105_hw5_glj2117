@@ -202,13 +202,43 @@ Make a plot showing the proportion of times the null was rejected (the power of 
 ```{r}
 power = 
   sim_results_df2 %>% 
-    filter(p.value > 0.05) %>% 
+    filter(p.value < 0.05) %>% 
     group_by(true_mu) %>% 
     count() %>% 
     mutate(power = n/5000)
+
+power %>% 
+  ggplot(aes(x = true_mu, y = power)) + 
+  geom_point()
 
 ```
 
 Make a plot showing the average estimate of μ̂  on the y axis and the true value of μ on the x axis. Make a second plot (or overlay on the first) the average estimate of μ̂  only in samples for which the null was rejected on the y axis and the true value of μ on the x axis. Is the sample average of μ̂  across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
 
 ```
+```{r}
+mu_hat = 
+  sim_results_df2 %>% 
+  select(true_mu, estimate, p.value) %>% 
+  group_by(true_mu) %>% 
+  summarize(avg_mu_hat = mean(estimate))
+
+mu_hat %>% 
+  ggplot(aes(x = avg_mu_hat, y = true_mu)) +
+  geom_point()
+
+mu_hat_signif = 
+  sim_results_df2 %>% 
+  filter(p.value < 0.05) %>% 
+  select(true_mu, estimate) %>% 
+  group_by(true_mu) %>% 
+  summarize(avg_mu_hat_signif = mean(estimate)) %>% 
+  left_join(mu_hat, mu_hat_signif, by = c("true_mu"))
+
+mu_hat_signif %>% 
+    ggplot +
+    geom_point(aes(x = avg_mu_hat, y = true_mu)) +
+    geom_point(aes(x = avg_mu_hat_signif, y = true_mu, color = "red"))
+
+```
+
