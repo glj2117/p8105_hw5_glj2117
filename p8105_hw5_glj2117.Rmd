@@ -138,7 +138,9 @@ city_prop %>%
   ggplot(aes(x = fct_reorder(city_state,estimate), y = estimate)) +
   geom_point() +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  xlab("City") +
+  ylab("Proportion of Unsolved Homicides")
 
 ```
 
@@ -156,6 +158,37 @@ Set μ=0. Generate 5000 datasets from the model
 x∼Normal[μ,σ]
 
 For each dataset, save μ̂  and the p-value arising from a test of H:μ=0 using α=0.05. Hint: to obtain the estimate and p-value, use broom::tidy to clean the output of t.test.
+
+```{r}
+sim = function(n = 30, mu = 0, sigma = 5) {
+sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma),
+  )
+  
+  sim_data %>% 
+    summarize(
+      mu_hat = mean(x),
+      sigma_hat = sd(x)
+    )
+}
+
+output = vector("list", length = 5000)
+
+for (i in 1:5000) {
+  output[[i]] = sim(mu = 0)
+}
+
+sim_results = bind_rows(output)
+
+t_test = sim_results %>% 
+  mutate(
+  map(mu_hat, t.test),
+  map(broom::tidy()),
+  map(~select(.x, estimate, p.value)
+  ))
+
+```
+
 
 Repeat the above for μ={1,2,3,4,5,6}, and complete the following:
 
