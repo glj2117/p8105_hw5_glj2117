@@ -75,10 +75,13 @@ homicide_data =
   mutate(unsolved = if_else(disposition == "Closed without arrest", 1, 0)) %>%
   mutate(unsolved = if_else(disposition == "Open/No arrest", 1, unsolved))
   
-  unsolved_homicides = 
-    homicide_data %>% 
-    group_by(city_state, unsolved) %>% 
-    summarize(total_homicides = n()) 
+unsolved_homicides = 
+  unsolved_homicides %>% 
+  group_by(city_state) %>% 
+  mutate(total = sum(total_homicides)) %>% 
+  filter(unsolved == 1) %>% 
+  rename(unsolved_hom = total_homicides) %>% 
+  select(city_state, unsolved_hom, total)
 
 ```
 
@@ -93,19 +96,49 @@ Baltimore_data =
 
 Baltimore_prop =
   prop.test(
-    x = Baltimore_data %>% pull(unsolved), 
-    n = Baltimore_data %>% pull(total_homicides), 
+    x = Baltimore_data %>% pull(unsolved_hom), 
+    n = Baltimore_data %>% pull(total), 
     alternative = c("two.sided"),
     conf.level = 0.95, correct = TRUE) %>% 
-    broom::tidy()
+    broom::tidy() %>%
+    select(estimate, conf.low, conf.high) %>% 
+    nest(data = everything())
 
+Baltimore_prop %>% 
+  pull(estimate)
 
+Baltimore_prop %>% 
+  pull(conf.low)
+
+Baltimore_prop %>% 
+  pull(conf.high)
 ```
-
 
 Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 
+```{r}
+
+city_prop = 
+  unsolved_homicides %>% 
+  mutate(p_test = map2(unsolved_hom, total, ~prop.test(.x, .y) %>% 
+  broom::tidy())) %>% 
+  unnest() %>% 
+  select(city_state, unsolved_hom, total, estimate, conf.low, conf.high)
+  
+
+```
+
 Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
+```{r}
+city_prop %>% 
+    mutate(city_state = forcats::fct_reorder(city_state, estimate) %>%  
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+```
 
 
 ## Problem 3
