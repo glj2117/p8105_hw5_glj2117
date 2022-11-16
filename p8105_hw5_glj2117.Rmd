@@ -51,7 +51,7 @@ Describe the raw data.
 
 ```{r}
 
-homicide_data = read_csv("homicide-data.csv") %>% 
+homicide_data = read_csv("homicide-data.csv", show_col_types = FALSE) %>% 
   janitor::clean_names()
 
 ```
@@ -66,23 +66,27 @@ homicide_data =
   unite(city_state, city, state)
   
 
-  homicide_data %>% 
-    group_by(city_state) %>% 
-    summarize(homicides = n()) 
-
 homicide_data = 
   homicide_data %>% 
   mutate(unsolved = if_else(disposition == "Closed without arrest", 1, 0)) %>%
   mutate(unsolved = if_else(disposition == "Open/No arrest", 1, unsolved))
-  
-unsolved_homicides = 
-  unsolved_homicides %>% 
-  group_by(city_state) %>% 
-  mutate(total = sum(total_homicides)) %>% 
-  filter(unsolved == 1) %>% 
-  rename(unsolved_hom = total_homicides) %>% 
-  select(city_state, unsolved_hom, total)
 
+unsolved_homicides = 
+  homicide_data %>% 
+    group_by(city_state, unsolved) %>% 
+    mutate(unsolved = as.factor(unsolved)) %>% 
+    select(city_state, unsolved) %>% 
+    group_by(city_state, unsolved) %>% 
+    count()
+
+unsolved_homicides =   
+  unsolved_homicides %>% 
+    group_by(city_state) %>% 
+    mutate(total = sum(n)) %>% 
+    filter(unsolved == 1) %>% 
+    rename(unsolved_hom = "n") %>% 
+    select(city_state, unsolved_hom, total)
+   
 ```
 
 For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
@@ -91,7 +95,7 @@ For the city of Baltimore, MD, use the prop.test function to estimate the propor
 
 Baltimore_data =
   unsolved_homicides %>% 
-  filter(city_state == "Baltimore_MD")
+  filter(city_state == "Baltimore_MD") 
   
 
 Baltimore_prop =
@@ -125,18 +129,16 @@ city_prop =
   unnest() %>% 
   select(city_state, unsolved_hom, total, estimate, conf.low, conf.high)
   
-
 ```
 
 Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
 ```{r}
+
 city_prop %>% 
-    mutate(city_state = forcats::fct_reorder(city_state, estimate) %>%  
-  ggplot(aes(x = city_state, y = estimate)) +
+  ggplot(aes(x = fct_reorder(city_state,estimate), y = estimate)) +
   geom_point() +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
 
 ```
 
